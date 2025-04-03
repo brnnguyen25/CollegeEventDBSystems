@@ -1,6 +1,6 @@
-#Term Project
+**Term Project
 COP 4710, Spring 2025
-Application: College Event Website
+Application: College Event Website**
 
 **Problem:**
 Most universities in the country host events around campus and off campus. These events are
