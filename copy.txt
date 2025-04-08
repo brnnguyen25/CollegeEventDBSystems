@@ -1,0 +1,42 @@
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.4/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-DQvkBjpPgn7RC31MCQoOeC9TI2kdqa4+BSgNMNj8v77fdC77Kj5zpWFTJaaAoMbC" crossorigin="anonymous">  
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.4/dist/js/bootstrap.bundle.min.js" integrity="sha384-YUe2LzesAfftltw+PEaao2tjU/QATaW/rOitAq67e0CT0Zi2VVRL0oC4+gAaeBKu" crossorigin="anonymous"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/angularjs/1.8.3/angular.min.js"></script>
+    <script src="https://code.angularjs.org/1.8.3/angular-route.min.js"></script>
+    placeholder
+    AIzaSyCdfLhVFKLWIG9KgSqsR4LITe3-LNSaj_U
+
+    <script async src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY_HERE&callback=console.debug&libraries=maps,marker&v=beta">
+    </script>
+
+            <li><a href="#">Academic</a></li>
+            <li><a href="#">Career</a></li>
+            <li><a href="#">Health</a></li>
+            <li><a href="#">Social</a></li>
+            <li><a href="#">Service</a></li>
+            <li><a href="#">Other</a></li>
+            <li><a href="#">Sports</a></li>
+
+            Academic
+            Career
+            Health
+            Social
+            Service
+            Other
+            Sports
+            brn005
+
+<form action="/event/:id<%= event.id %>" method="POST" style="display: inline;">
+ <button type="submit" class="btn btn-view">Details</button>
+</form>
+
+<form action="/rso/:id<%= event.id %>" method="POST" style="display: inline;">
+ <button type="submit" class="btn btn-view">Details</button>
+ </form>
+ node --version
+ npm init -y 
+ npm install body-parser cookie-parser debug ejs express express-myconnection express-session mysql nodemon
+ npm install express ejs mysql body-parser cookie-parser express-session express-myconnection debug morgan path nodemon

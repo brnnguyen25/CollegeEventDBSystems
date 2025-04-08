@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <style>
+        :root {
+            --gold: #FFD700;
+            --dark-gold: #D4AF37;
+            --black: #000000;
+            --white: #FFFFFF;
+            --light-gray: #F5F5F5;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--black);
+            color: var(--white);
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 2px solid var(--gold);
+            margin-bottom: 30px;
+        }
+        
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--gold);
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .user-info span {
+            color: var(--gold);
+        }
+        
+        .logout-btn {
+            background-color: var(--gold);
+            color: var(--black);
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        
+        .logout-btn:hover {
+            background-color: var(--dark-gold);
+        }
+        
+        .page-title {
+            color: var(--gold);
+            font-size: 2.5rem;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 30px;
+            border-bottom: 1px solid var(--gold);
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            color: var(--gold);
+            font-weight: bold;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            border-bottom: 3px solid var(--gold);
+            color: var(--white);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .org-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+        
+        .org-card {
+            background-color: var(--white);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.2);
+            color: var(--black);
+        }
+        
+        .org-header {
+            background-color: var(--gold);
+            padding: 15px;
+            color: var(--black);
+            font-weight: bold;
+        }
+        
+        .org-body {
+            padding: 20px;
+        }
+        
+        .org-name {
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+            color: var(--black);
+        }
+        
+        .org-university {
+            color: #666;
+            margin-bottom: 15px;
+        }
+        
+        .org-members {
+            font-size: 0.9rem;
+            color: #444;
+        }
+        
+        .btn {
+            display: inline-block;
+            background-color: var(--gold);
+            color: var(--black);
+            padding: 10px 20px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: background-color 0.3s;
+            border: none;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        .btn:hover {
+            background-color: var(--dark-gold);
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--gold);
+        }
+        
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            background-color: var(--light-gray);
+        }
+        
+        .member-inputs {
+            margin-top: 20px;
+        }
+        
+        .member-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .member-row input {
+            flex: 1;
+        }
+        
+        .admin-badge {
+            background-color: var(--gold);
+            color: var(--black);
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            margin-left: 10px;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 20px 0;
+            border-top: 2px solid var(--gold);
+            color: var(--gold);
+        }
+
+        .no-orgs {
+    padding: 40px;
+    background-color: rgba(255, 215, 0, 0.1);
+    border-radius: 8px;
+    margin-top: 20px;
+}
+
+.no-orgs h3 {
+    color: var(--gold);
+    margin-bottom: 10px;
+}
+
+.viewOrgs {
+    width: 100%;
+}
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">UCF ORGANIZATIONS</div>
+            <div class="user-info">
+                <span><%= user.username %></span>
+                <a href="/logout" class="logout-btn">Logout</a>
+            </div>
+        </header>
+        
+        <h1 class="page-title">Student Organizations</h1>
+        
+        <div class="create-rso-section">
+            <h2>Create New RSO</h2>
+            <form id="rsoForm" action="/create-rso" method="POST">
+                <div class="form-group">
+                    <label for="name">Organization Name</label>
+                    <input type="text" id="name" name="name" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="description">Description</label>
+                    <input type="text" id="description" name="description" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>Administrator (automatically set to your account)</label>
+                    <input type="text" value="<%= user.email %>" disabled>
+                    <input type="hidden" name="adminEmail" value="<%= user.email %>">
+                </div>
+                
+                <div class="member-inputs">
+                    <h3 style="color: var(--gold);">Add 4 Members with UCF Emails</h3>
+                    
+                    <div class="form-group">
+                        <label for="member1">Member 1 Email</label>
+                        <input type="email" id="member1" name="members[]" placeholder="xxx@ucf.edu" pattern=".*@ucf\.edu$" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="member2">Member 2 Email</label>
+                        <input type="email" id="member2" name="members[]" placeholder="xxx@ucf.edu" pattern=".*@ucf\.edu$" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="member3">Member 3 Email</label>
+                        <input type="email" id="member3" name="members[]" placeholder="xxx@ucf.edu" pattern=".*@ucf\.edu$" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="member4">Member 4 Email</label>
+                        <input type="email" id="member4" name="members[]" placeholder="xxx@ucf.edu" pattern=".*@ucf\.edu$" required>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn">Create RSO</button>
+            </form>
+        </div>
+
+        <div class="view-orgs-section">
+            <h2>Existing Organizations</h2>
+            <div class="org-grid">
+                <% if (orgs && orgs.length > 0) { %>
+                    <% for(let i = 0; i < orgs.length; i++) { %>
+                        <div class="org-card">
+                            <div class="org-header">
+                                <%= orgs[i].name %>
+                            </div>
+                            <div class="org-body">
+                                <div class="org-name"><%= orgs[i].name %></div>
+                                <div class="org-members">
+                                    <div>Members: <%= orgs[i].MemberCount || 0 %></div>
+                                    <div>Admin: <%= orgs[i].admin_username  %> <span class="admin-badge">ADMIN</span></div>
+                                    <a href="/viewRSO/<%= orgs[i].id %>" class="btn">View Details</a>
+                                </div>
+                            </div>
+                        </div>
+                    <% } %>
+                <% } else { %>
+                    <div class="no-orgs" style="grid-column: 1/-1; text-align: center; color: var(--gold);">
+                        <h3>No organizations found</h3>
+                        <p>Use the form above to create one!</p>
+                    </div>
+                <% } %>
+            </div>
+        </div>
+
+        <footer>
+            <p>&copy; 2025 Campus Connect. All rights reserved.</p>
+        </footer>
+    </div>
+    
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+</body>
+</html>

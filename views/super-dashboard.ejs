@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><%= title %></title>
+    <style>
+        :root {
+            --gold: #FFD700;
+            --dark-gold: #D4AF37;
+            --black: #000000;
+            --white: #FFFFFF;
+            --light-gray: #F5F5F5;
+        }
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--black);
+            color: var(--white);
+        }
+        
+        .dashboard-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 0;
+            border-bottom: 2px solid var(--gold);
+            margin-bottom: 30px;
+        }
+        
+        .logo {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--gold);
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .user-info span {
+            color: var(--gold);
+        }
+        
+        .logout-btn {
+            background-color: var(--gold);
+            color: var(--black);
+            border: none;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        
+        .logout-btn:hover {
+            background-color: var(--dark-gold);
+        }
+        
+        .welcome-section {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .welcome-section h1 {
+            color: var(--gold);
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .welcome-section p {
+            font-size: 1.1rem;
+            max-width: 700px;
+            margin: 0 auto;
+        }
+        
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-top: 40px;
+        }
+        
+        .dashboard-card {
+            background-color: var(--white);
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 0 15px rgba(255, 215, 0, 0.2);
+            transition: transform 0.3s;
+            color: var(--black);
+        }
+        
+        .dashboard-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+        }
+        
+        .card-header {
+            background-color: var(--gold);
+            padding: 15px;
+            text-align: center;
+        }
+        
+        .card-header h2 {
+            margin: 0;
+            color: var(--black);
+        }
+        
+        .card-body {
+            padding: 25px;
+            text-align: center;
+        }
+        
+        .card-body p {
+            margin-bottom: 25px;
+        }
+        
+        .card-btn {
+            display: inline-block;
+            background-color: var(--gold);
+            color: var(--black);
+            padding: 10px 25px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        
+        .card-btn:hover {
+            background-color: var(--dark-gold);
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 20px 0;
+            border-top: 2px solid var(--gold);
+            color: var(--gold);
+        }
+        
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            header {
+                flex-direction: column;
+                gap: 15px;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard-container">
+        <header>
+            <div class="logo">GOLDEN EVENT DASHBOARD</div>
+            <div class="user-info">
+                <span>Welcome, <%= user.username %></span>
+                <span><i class="fas fa-university"></i> <%= user.university %></span>
+                <a href="/logout" class="logout-btn">Logout</a>
+            </div>
+        </header>
+        
+        <section class="welcome-section">
+            <h1>Super Admin Dashboard</h1>
+            <p>Manage your campus activities, explore organizations, and discover upcoming events all in one place.</p>
+        </section>
+        
+        <div class="dashboard-grid">
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h2><i class="far fa-calendar-alt"></i> Universities</h2>
+                </div>
+                <div class="card-body">
+                    <p>Browse and register Universities.</p>
+                    <a href="/universities" class="card-btn">View Universities</a>
+                </div>
+            </div>
+            
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h2><i class="fas fa-users"></i> Super Panel</h2>
+                </div>
+                <div class="card-body">
+                    <p>Approve/Disapprove student organizations and events.</p>
+                    <a href="/super" class="card-btn">View Super Panel</a>
+                </div>
+            </div>
+            
+
+        </div>
+        
+        <footer>
+            <p>&copy; 2025  Campus Connect. All rights reserved.</p>
+        </footer>
+    </div>
+</body>
+</html>

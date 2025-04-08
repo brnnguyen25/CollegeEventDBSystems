@@ -1,0 +1,755 @@
+const express = require('express');
+const path = require('path');
+const logger = require('morgan');
+const bodyParser = require('body-parser');
+const cookieParser = require('cookie-parser');
+const session = require('express-session');
+const mysql = require('mysql2');
+const myConnection = require('express-myconnection');
+const debug = require('debug')('app:server');
+const ejs = require('ejs');
+
+
+// Create Express app
+const app = express();
+
+// View engine setup
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'ejs');
+
+// Middleware setup
+app.use(logger('dev'));
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(cookieParser());
+app.use(express.static(path.join(__dirname, 'public')));
+
+
+// Session setup
+app.use(session({
+  secret: 'penguins@198',
+  resave: false,
+  saveUninitialized: true,
+  cookie: { secure: false } // Set to true if using HTTPS
+}));
+
+// Database setup
+const dbOptions = {
+  host: 'localhost',
+  user: 'brnnguyen25',
+  port: 3306,
+  password: 'Duwanggang1@',
+  database: 'setup'
+};
+app.use(myConnection(mysql, dbOptions, 'single'));
+
+// Routes
+app.get('/', (req, res) => {
+  res.render('index', { title: 'Home' });
+});
+
+// Login routes
+app.get('/login', (req, res) => {
+  res.render('login', { title: 'Login', message: req.session.message });
+  req.session.message = null; // Clear message after displaying
+});
+
+app.post('/login', (req, res) => {
+  // Check if user is already logged in
+  const { username, password } = req.body;
+
+  // Basic validation
+  if (!username || !password) {
+    req.session.message = 'Please enter both username and password';
+    return res.redirect('/login');
+  }
+
+   // Check user in database
+  req.getConnection((err, connection) => {
+    if (err) throw err;
+    
+    connection.query(
+      'SELECT * FROM Users WHERE username = ? AND password = ?',
+      [username, password],
+      (error, results) => {
+        if (error) throw error;
+        
+        if (results.length > 0) {
+          req.session.user = results[0];
+          res.redirect('/dashboard');
+        } else {
+          req.session.message = 'Invalid username or password';
+          res.redirect('/login');
+        }
+      }
+    );
+  });
+  
+
+
+  
+
+});
+
+// Registration routes
+app.get('/register', (req, res) => {
+  res.render('register', { title: 'Register', message: req.session.message });
+  req.session.message = null;
+});
+
+app.post('/register', (req, res) => {
+    const { name, email, username, password, confirmPassword, university, user_type} = req.body;
+    
+    // Basic validation
+    if (!name|| !email || !username || !password || !confirmPassword || !university || !user_type) {
+      req.session.message = 'Please fill all fields';
+      return res.redirect('/register');
+    }
+    
+    // Username validation: only letters and numbers
+    const usernameRegex = /^[a-zA-Z0-9]+$/;
+    if (!usernameRegex.test(username)) {
+      req.session.message = 'Username must contain only letters and numbers';
+      return res.redirect('/register');
+    }
+    
+    // Password validation
+    const passwordRegex = /^(?=.*[0-9])(?=.*[@#$%&])[a-zA-Z0-9@#$%&]{4,12}$/;
+    if (!passwordRegex.test(password)) {
+      req.session.message = 'Password must be 4-12 characters, contain at least one number and one special symbol (@#$%&)';
+      return res.redirect('/register');
+    }
+    
+    if (password !== confirmPassword) {
+      req.session.message = 'Passwords do not match';
+      return res.redirect('/register');
+    }
+    
+    // Check if user exists
+    req.getConnection((err, connection) => {
+      if (err) throw err;
+      
+      connection.query(
+        'SELECT * FROM users WHERE username = ? OR email = ?',
+        [username, email],
+        (error, results) => {
+          if (error) throw error;
+          
+          if (results.length > 0) {
+            req.session.message = 'Username or email already exists';
+            return res.redirect('/register');
+          }
+          
+          // Create new user
+          connection.query(
+            'INSERT INTO users (name , email, username, password, university, user_type) VALUES (?, ?, ?, ?, ?, ?)', 
+            [name, email, username, password, university, user_type],
+            (insertError) => {
+              if (insertError) throw insertError;
+              
+              req.session.message = 'Registration successful! Please login.';
+              res.redirect('/login');
+            }
+          );
+        }
+      );
+    });
+    
+  });
+
+// Logout route
+app.get('/logout', (req, res) => {
+  req.session.destroy();
+  res.redirect('/');
+});
+
+// Super Admin Routes
+app.get('/super', (req, res) => {
+    if (!req.session.user || !req.session.user.isSuperAdmin) {
+      return res.redirect('/login');
+    }
+  
+    req.getConnection((err, connection) => {
+      if (err) throw err;
+      
+      // Get pending events (public only)
+      connection.query(
+        `SELECT e.*, u.username as creator_name 
+         FROM events e 
+         JOIN users u ON e.created_by = u.id 
+         WHERE e.status = 'pending' AND e.event_type = 'public'`,
+        (error, pendingEvents) => {
+          if (error) throw error;
+          
+          // Get pending RSOs
+          connection.query(
+            `SELECT r.*, u.username as admin_name, u.email as admin_email, 
+             (SELECT COUNT(*) FROM rsomembers WHERE rso_id = r.id) as member_count
+             FROM rsos r 
+             JOIN users u ON r.admin_id = u.id 
+             WHERE r.status = 'pending'`,
+            (error, pendingRSOs) => {
+              if (error) throw error;
+              
+              res.render('super', {
+                title: 'Super Admin Panel',
+                user: req.session.user,
+                pendingEvents: pendingEvents,
+                pendingRSOs: pendingRSOs
+              });
+            }
+          );
+        }
+      );
+    });
+  });
+  
+  // Approval routes
+  app.post('/approve-event/:id', (req, res) => {
+    if (!req.session.user || !req.session.user.isSuperAdmin) {
+      return res.redirect('/login');
+    }
+    
+    req.getConnection((err, connection) => {
+      if (err) throw err;
+      
+      connection.query(
+        'UPDATE events SET status = "approved" WHERE id = ?',
+        [req.params.id],
+        (error) => {
+          if (error) throw error;
+          res.redirect('/super');
+        }
+      );
+    });
+  });
+  
+  app.post('/reject-event/:id', (req, res) => {
+    if (!req.session.user || !req.session.user.isSuperAdmin) {
+      return res.redirect('/login');
+    }
+    
+    req.getConnection((err, connection) => {
+      if (err) throw err;
+      
+      connection.query(
+        'UPDATE events SET status = "rejected" WHERE id = ?',
+        [req.params.id],
+        (error) => {
+          if (error) throw error;
+          res.redirect('/super');
+        }
+      );
+    });
+  });
+  
+  app.post('/approve-rso/:id', (req, res) => {
+    if (!req.session.user || !req.session.user.isSuperAdmin) {
+      return res.redirect('/login');
+    }
+    
+    req.getConnection((err, connection) => {
+      if (err) throw err;
+      
+      connection.query(
+        'UPDATE rsos SET status = "approved" WHERE id = ?',
+        [req.params.id],
+        (error) => {
+          if (error) throw error;
+          res.redirect('/super');
+        }
+      );
+    });
+  });
+  
+  app.post('/reject-rso/:id', (req, res) => {
+    if (!req.session.user || !req.session.user.isSuperAdmin) {
+      return res.redirect('/login');
+    }
+    
+    req.getConnection((err, connection) => {
+      if (err) throw err;
+      
+      connection.query(
+        'UPDATE rsos SET status = "rejected" WHERE id = ?',
+        [req.params.id],
+        (error) => {
+          if (error) throw error;
+          res.redirect('/super');
+        }
+      );
+    });
+  });
+
+// Events routes
+app.get('/events', (req, res) => {
+    if (!req.session.user) return res.redirect('/login');
+    
+    req.getConnection((err, connection) => {
+      if (err) throw err;
+      
+      connection.query(
+        'SELECT * FROM events ORDER BY date, time',
+        (error, results) => {
+          if (error) throw error;
+          
+          res.render('events', { 
+            title: 'Events', 
+            user: req.session.user,
+            events: results
+          });
+        }
+      );
+    });
+  });
+  
+  app.post('/create-event', (req, res) => {
+    if (!req.session.user || !req.session.user.isAdmin) {
+      return res.redirect('/login');
+    }
+    
+    const { name, category, description, date, time, location, contact_info, contact_email, event_type } = req.body;
+    
+    req.getConnection((err, connection) => {
+      if (err) throw err;
+      
+      connection.query(
+        'INSERT INTO events (name, category, description, date, time, location, contact_info, contact_email, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [name, category, description, date, time, location, contact_info, contact_email, event_type, req.session.user.id],
+        (error) => {
+          if (error) throw error;
+          
+          res.redirect('/events');
+        }
+      );
+    });
+  });
+
+  // Event View Route
+app.get('/viewEvent/:id', (req, res) => {
+    if (!req.session.user) {
+      return res.redirect('/login');
+    }
+  
+    req.getConnection((err, connection) => {
+      if (err) throw err;
+      
+      // Get event details
+      connection.query(
+        `SELECT e.*, u.username as creator_name 
+         FROM events e 
+         JOIN users u ON e.created_by = u.id 
+         WHERE e.id = ?`,
+
+        [req.params.id],
+        (error, eventResults) => {
+          if (error) throw error;
+          
+          if (eventResults.length === 0) {
+            return res.redirect('/events');
+          }
+          
+          // Get comments for this event
+          connection.query(
+            `SELECT c.*, u.username 
+             FROM comments c 
+             JOIN users u ON c.user_id = u.id 
+             WHERE c.event_id = ? 
+             ORDER BY c.created_at DESC`,
+            [req.params.id],
+            (error, commentResults) => {
+              if (error) throw error;
+              
+              const event = eventResults[0];
+              event.comments = commentResults;
+              
+              res.render('viewEvent', {
+                title: event.name,
+                user: req.session.user,
+                event: event
+              });
+            }
+          );
+        }
+      );
+    });
+  });
+  
+  // Event Rating Route
+  app.post('/rate-event/:id', (req, res) => {
+    if (!req.session.user) return res.redirect('/login');
+    if (req.session.user.isAdmin || req.session.user.isSuperAdmin) {
+      return res.redirect('/events');  // Block admins from rating
+    }
+  
+    const { rating, comment } = req.body;
+  // Validate rating (1-5)
+  if (!rating || rating < 1 || rating > 5) {
+  req.session.error = "Please select a rating (1-5 stars).";
+  return res.redirect(`/viewEvent/${req.params.id}`);
+}
+  // Sanitize comment (e.g., with `validator` or custom logic)
+  if (!comment?.trim()) {
+  req.session.error = "Comment cannot be empty.";
+  return res.redirect(`/viewEvent/${req.params.id}`);
+}
+    
+    req.getConnection((err, connection) => {
+      if (err) throw err;
+      
+      connection.query(
+        'INSERT INTO comments (event_id, user_id, rating, text) VALUES (?, ?, ?, ?)',
+        [req.params.id, req.session.user.id, rating, comment],
+        (error) => {
+          if (error) throw error;
+          res.redirect(`/viewEvent/${req.params.id}`);
+        }
+      );
+    });
+  });
+
+  // Universities Routes
+app.get('/universities', (req, res) => {
+    if (!req.session.user) {
+      return res.redirect('/login');
+    }
+  
+    req.getConnection((err, connection) => {
+      if (err) throw err;
+      
+       // Convert numbers if needed
+        universities = universities.map(u => ({
+        ...u,
+        num_students: Number(u.num_students)
+         }));
+
+      connection.query(
+        'SELECT name, location, description, num_students, contact_phone, contact_email FROM universities ORDER BY name',
+        (error, universities) => {
+          if (error) throw error;
+          
+          res.render('universities', {
+            title: 'Universities',
+            user: req.session.user,
+            universities: universities
+          });
+        }
+      );
+    });
+  });
+  
+  app.post('/create-university', (req, res) => {
+    if (!req.session.user || !req.session.user.isSuperAdmin) {
+      return res.redirect('/login');
+    }
+  
+    const { name, location, description, num_students, contact_phone, contact_email } = req.body;
+  
+    req.getConnection((err, connection) => {
+      if (err) throw err;
+      
+      connection.query(
+        'INSERT INTO universities (name, location, description, num_students, contact_phone, contact_email) VALUES (?, ?, ?, ?, ?, ?)',
+        [name, location, description, num_students, contact_phone, contact_email],
+        (error) => {
+          if (error) throw error;
+          res.redirect('/universities');
+        }
+      );
+    });
+  });
+  
+  app.get('/organizations', (req, res) => {
+    if (!req.session.user) return res.redirect('/login');
+
+    // Add logic to fetch organizations from database
+    req.getConnection((err, connection) => {
+        if (err) throw err;
+        
+        connection.query(
+          'SELECT r.rso_id, r.name, r.admin_id, COUNT(rm.user_id) as member_count ' +
+          'FROM rsos r LEFT JOIN rsomembers rm ON r.rso_id = rm.rso_id ' +
+          'GROUP BY r.rso_id',
+          (error, results) => {
+            if (error) throw error;
+            
+            res.render('organizations', { 
+              title: 'Organizations', 
+              user: req.session.user,
+              orgs: results
+            });
+          }
+        );
+      });
+  });
+
+  // RSO View Route
+  app.get('/viewRSO/:id', (req, res) => {
+    if (!req.session.user) {
+        return res.redirect('/login');
+    }
+
+    req.getConnection((err, connection) => {
+        if (err) throw err;
+        
+        // Get RSO details
+        connection.query(
+          `SELECT r.*, u.username as admin_username, u.email as admin_email 
+          FROM rsos r 
+          JOIN users u ON r.admin_id = u.user_id 
+          WHERE r.rso_id = ?`,
+            [req.params.id],
+            (error, rsoResults) => {
+                if (error) throw error;
+                
+                if (rsoResults.length === 0) {
+                    return res.redirect('/organizations');
+                }
+                
+                // Check if current user is a member
+                connection.query(
+                  `SELECT 1 FROM rsomembers WHERE rso_id = ? AND user_id = ?`,
+                    [req.params.id, req.session.user.id],
+                    (error, isMemberResults) => {
+                        if (error) throw error;
+                        
+                        const isMember = isMemberResults.length > 0;
+                        
+                        // Get members for this RSO
+                        connection.query(
+                          `SELECT u.username, u.email 
+                          FROM rsomembers rm 
+                          JOIN users u ON rm.user_id = u.user_id 
+                          WHERE rm.rso_id = ? AND rm.user_id != ?`,
+                            [req.params.id, rsoResults[0].admin_id],
+                            (error, memberResults) => {
+                                if (error) throw error;
+                                
+                                const rso = {
+                                    ...rsoResults[0],
+                                    admin: {
+                                        username: rsoResults[0].admin_username,
+                                        email: rsoResults[0].admin_email
+                                    },
+                                    members: memberResults
+                                };
+                                
+                                res.render('viewRSO', {
+                                    title: rso.name,
+                                    user: req.session.user,
+                                    rso: rso,
+                                    isMember: isMember
+                                });
+                            }
+                        );
+                    }
+                );
+            }
+        );
+    });
+});
+
+// Join RSO Route
+app.post('/rso/:id/join', (req, res) => {
+  if (!req.session.user) {
+      return res.redirect('/login');
+  }
+
+  req.getConnection((err, connection) => {
+      if (err) throw err;
+      
+      // First check if user is already a member
+      connection.query(
+        `SELECT 1 FROM rsomembers WHERE rso_id = ? AND user_id = ?`,
+          [req.params.id, req.session.user.id],
+          (error, results) => {
+              if (error) throw error;
+              
+              if (results.length > 0) {
+                  return res.redirect(`/viewRSO/${req.params.id}`);
+              }
+              
+              // Add user to RSO
+              connection.query(
+                `INSERT INTO rsomembers (rso_id, user_id) VALUES (?, ?)`,
+                  [req.params.id, req.session.user.id],
+                  (error) => {
+                      if (error) throw error;
+                      res.redirect(`/viewRSO/${req.params.id}`);
+                  }
+              );
+          }
+      );
+  });
+});
+
+// Leave RSO Route
+app.post('/rso/:id/leave', (req, res) => {
+  if (!req.session.user) {
+      return res.redirect('/login');
+  }
+
+  req.getConnection((err, connection) => {
+      if (err) throw err;
+      
+      // Remove user from RSO (but not if they're the admin)
+      connection.query(
+        `DELETE FROM rsomembers 
+        WHERE rso_id = ? AND user_id = ? 
+        AND user_id != (SELECT admin_id FROM rsos WHERE rso_id = ?)`,
+          [req.params.id, req.session.user.id, req.params.id],
+          (error, results) => {
+              if (error) throw error;
+              res.redirect(`/viewRSO/${req.params.id}`);
+          }
+      );
+  });
+});
+
+  app.post('/create-rso', (req, res) => {
+    if (!req.session.user) return res.redirect('/login');
+    
+    const { name, description, adminEmail, members } = req.body;
+    
+    // Validate all members have @ucf.edu emails
+    const emailRegex = /^[^\s@]+@ucf\.edu$/i;
+    const allMembers = [...members, adminEmail]; // Include admin in validation
+    
+    for (const email of allMembers) {
+        if (!emailRegex.test(email)) {
+            return res.status(400).render('error', { 
+                message: 'All members must have valid @ucf.edu email addresses',
+                user: req.session.user 
+            });
+        }
+    }
+
+    req.getConnection((err, connection) => {
+        if (err) {
+            console.error(err);
+            return res.status(500).render('error', { 
+                message: 'Database connection error',
+                user: req.session.user 
+            });
+        }
+
+        // Check if members exist in database
+        connection.query(
+            'SELECT id FROM users WHERE email IN (?)',
+            [allMembers],
+            (error, results) => {
+                if (error) {
+                    console.error(error);
+                    return res.status(500).render('error', { 
+                        message: 'Database error',
+                        user: req.session.user 
+                    });
+                }
+
+                // Verify we found all members
+                if (results.length !== allMembers.length) {
+                    return res.status(400).render('error', { 
+                        message: 'One or more members do not exist in the system',
+                        user: req.session.user 
+                    });
+                }
+
+                // Create the RSO in database
+                connection.beginTransaction(err => {
+                    if (err) {
+                        console.error(err);
+                        return res.status(500).render('error', { 
+                            message: 'Transaction error',
+                            user: req.session.user 
+                        });
+                    }
+
+                    // First insert the RSO
+                    connection.query(
+                      'INSERT INTO rsos (name, description, admin_id) VALUES (?, ?, (SELECT user_id FROM users WHERE email = ?))',
+                        [name, description, adminEmail],
+                        (error, results) => {
+                            if (error) {
+                                return connection.rollback(() => {
+                                    console.error(error);
+                                    res.status(500).render('error', { 
+                                        message: 'Error creating RSO',
+                                        user: req.session.user 
+                                    });
+                                });
+                            }
+
+                            const rsoId = results.insertId;
+
+                            // Then insert all members
+                            const memberValues = allMembers.map(email => [rsoId, email]);
+                            connection.query(
+                                'INSERT INTO  rsomembers(rso_id, user_id) SELECT ?, id FROM users WHERE email IN (?)',
+                                [rsoId, allMembers],
+                                (error) => {
+                                    if (error) {
+                                        return connection.rollback(() => {
+                                            console.error(error);
+                                            res.status(500).render('error', { 
+                                                message: 'Error adding members',
+                                                user: req.session.user 
+                                            });
+                                        });
+                                    }
+
+                                    // Commit the transaction
+                                    connection.commit(err => {
+                                        if (err) {
+                                            return connection.rollback(() => {
+                                                console.error(err);
+                                                res.status(500).render('error', { 
+                                                    message: 'Transaction commit error',
+                                                    user: req.session.user 
+                                                });
+                                            });
+                                        }
+
+                                        // Return to organizations page with success message
+                                        req.flash('success', 'RSO created successfully! Awaiting approval.');
+                                        res.redirect('/organizations');
+                                    });
+                                }
+                            );
+                        }
+                    );
+                });
+            }
+        );
+    });
+});
+
+
+// Protected dashboard route
+app.get('/dashboard', (req, res) => {
+  if (!req.session.user) {
+    return res.redirect('/login');
+  }
+  res.render('dashboard', { title: 'Dashboard', user: req.session.user });
+});
+
+// Error handling
+app.get('/error', (req, res) => {
+  res.render('error', { title: 'Error' });
+});
+// 404 Error handling
+app.use((req, res, next) => {
+  res.status(404).render('error', { title: '404 - Not Found', message: 'Page not found' });
+});
+
+// General error handling
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).render('error', { title: '500 - Server Error', message: 'Something went wrong' });
+});
+
+// Start server
+app.listen(3000, () => {
+  debug('Server is running on http://localhost:3000');
+});
+
+module.exports = app;
