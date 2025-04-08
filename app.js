@@ -43,7 +43,7 @@ const dbOptions = {
   host: 'localhost',
   user: 'brnnguyen25',
   port: 3306,
-  password: 'Duwanggang1@',
+  password: '',
   database: 'setup'
 };
 app.use(myConnection(mysql, dbOptions, 'single'));
