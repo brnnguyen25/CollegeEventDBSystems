@@ -215,142 +215,213 @@
         }
     </style>
    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
-   <head>
-    <body>
-        <div class="container">
-            <header>
-                <div class="logo">UCF EVENTS</div>
-                <div class="user-info">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">UCF EVENTS</div>
+            <div class="user-info">
+                <% if (user) { %>
                     <span><%= user.username %></span>
                     <% if (user.isAdmin) { %>
                         <span class="admin-badge">ADMIN</span>
                     <% } %>
+                    <% if (user.isSuperAdmin) { %>
+                        <span class="superadmin-badge">SUPER ADMIN</span>
+                    <% } %>
                     <a href="/logout" class="logout-btn">Logout</a>
-                </div>
-            </header>
+                <% } else { %>
+                    <a href="/login" class="login-btn">Login</a>
+                <% } %>
+            </div>
+        </header>
+        
+        <h1 class="page-title">Campus Events</h1>
+        
+        <% if (user && (user.isAdmin || user.isSuperAdmin)) { %>
+            <div class="host-event-section">
+                <h2>Host a New Event</h2>
+                <form id="eventForm" action="/create-event" method="POST">
+                    <div class="form-group">
+                        <label for="eventName">Event Name</label>
+                        <input type="text" id="eventName" name="name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="category">Category</label>
+                        <select id="category" name="category" required>
+                            <option value="">Select a category</option>
+                            <option value="Academic">Academic</option>
+                            <option value="Social">Social</option>
+                            <option value="Sports">Sports</option>
+                            <option value="Cultural">Cultural</option>
+                            <option value="Workshop">Workshop</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="description">Description</label>
+                        <textarea id="description" name="description" required></textarea>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="date">Date</label>
+                        <input type="date" id="date" name="date" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="time">Time</label>
+                        <input type="time" id="time" name="time" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="location">Location</label>
+                        <input type="text" id="location" name="location" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="contactInfo">Contact Info</label>
+                        <input type="tel" id="contactInfo" name="contact_info" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="contactEmail">Contact Email</label>
+                        <input type="email" id="contactEmail" name="contact_email" value="<%= user.email %>" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="event_type">Event Type</label>
+                        <select id="event_type" name="event_type" required>
+                            <option value="Public">Public (Visible to everyone)</option>
+                            <option value="Private">Private (Only for <%= user.university %> students)</option>
+                            <option value="RSO">RSO Event (Only for RSO members)</option>
+                        </select>
+                    </div>
+                    
+                    <% if (user.university) { %>
+                        <input type="hidden" name="university_id" value="<%= user.university %>">
+                    <% } %>
+                    
+                    <div id="rsoField" class="form-group" style="display: none;">
+                        <label for="rso_id">Select RSO</label>
+                        <select id="rso_id" name="rso_id">
+
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn">Create Event</button>
+                </form>
+            </div>
+        <% } %>
+        
+        <div class="events-section">
+            <h2>Upcoming Events</h2>
             
-            <h1 class="page-title">Campus Events</h1>
-            
-            <% if (user.isAdmin) { %>
-                <div class="host-event-section">
-                    <h2>Host a New Event</h2>
-                    <form id="eventForm" action="/create-event" method="POST">
-                        <div class="form-group">
-                            <label for="eventName">Event Name</label>
-                            <input type="text" id="eventName" name="name" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="category">Category</label>
-                            <select id="category" name="category" required>
-                                <option value="">Select a category</option>
-                                <option value="Academic">Academic</option>
-                                <option value="Social">Social</option>
-                                <option value="Sports">Sports</option>
-                                <option value="Cultural">Cultural</option>
-                                <option value="Workshop">Workshop</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="description">Description</label>
-                            <textarea id="description" name="description" required></textarea>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="date">Date</label>
-                            <input type="date" id="date" name="date" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="time">Time</label>
-                            <input type="time" id="time" name="time" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="location">Location</label>
-                            <input type="text" id="location" name="location" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="contactInfo">Contact Info</label>
-                            <input type="tel" id="contactInfo" name="contact_info" required>
-                        </div>
-                        
-                        <div class="form-group">
-                            <label for="contactEmail">Contact Email</label>
-                            <input type="email" id="contactEmail" name="contact_email" value="<%= user.email %>" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="event_type">Event Type:</label>
-                            <select id="event_type" name="event_type" required>
-                            <option value="public">Public Event</option>
-                            <option value="private">Private Event</option>
-                            <option value="rso">RSO Event</option>
-                            </select>
-                        </div>
-                        
-                        <button type="submit" class="btn">Create Event</button>
-                    </form>
+            <% if (!user) { %>
+                <div class="info-banner">
+                    <i class="fas fa-info-circle"></i> 
+                    <p>You're viewing public events only. <a href="/login">Login</a> to see private and RSO events available to you.</p>
                 </div>
             <% } %>
             
-            <div class="events-section">
-                <h2>Upcoming Events</h2>
-                <div class="events-grid">
-                    <% if (events && events.length > 0) { %>
-                        <% for(let i = 0; i < events.length; i++) { %>
-                            <div class="event-card">
-                                <div class="event-header">
-                                    <%= events[i].category %>
-                                </div>
-                                <div class="event-body">
-                                    <div class="event-name"><%= events[i].name %></div>
-                                    <div class="event-meta">
-                                        <i class="far fa-calendar-alt"></i> <%= events[i].date %> at <%= events[i].time %>
-                                    </div>
-                                    <div class="event-meta">
-                                        <i class="fas fa-map-marker-alt"></i> <%= events[i].location %>
-                                    </div>
-                                    <div class="event-description">
-                                        <%= events[i].description %>
-                                    </div>
-                                    <div class="event-meta">
-                                        <i class="fas fa-envelope"></i> <%= events[i].contact_email %>
-                                    </div>
-                                    <div class="event-meta">
-                                        <i class="fas fa-phone"></i> <%= events[i].contact_info %>
-                                    </div>
-                                    <a href="/viewEvent/<%= events[i].id %>" class="btn">View Details</a>
-                                </div>
+            <div class="events-grid">
+                <% if (events && events.length > 0) { %>
+                    <% for(let i = 0; i < events.length; i++) { %>
+                        <div class="event-card">
+                            <div class="event-header">
+                                <%= events[i].category %>
+                                <span class="event-type-badge <%= events[i].event_type.toLowerCase() %>">
+                                    <%= events[i].event_type %>
+                                    <% if (events[i].event_type === 'Private') { %>
+                                        <i class="fas fa-lock" title="Only visible to <%= events[i].university_name || events[i].university_id %> students"></i>
+                                    <% } else if (events[i].event_type === 'RSO') { %>
+                                        <i class="fas fa-users" title="Only visible to RSO members"></i>
+                                    <% } else { %>
+                                        <i class="fas fa-globe" title="Public event"></i>
+                                    <% } %>
+                                </span>
                             </div>
-                        <% } %>
-                    <% } else { %>
-                        <div class="no-events">
-                            <h3>No upcoming events</h3>
-                            <% if (user.isAdmin) { %>
-                                <p>Create the first event using the form above!</p>
-                            <% } else { %>
-                                <p>Check back later for upcoming events</p>
-                            <% } %>
+                            <div class="event-body">
+                                <div class="event-name"><%= events[i].name %></div>
+                                <div class="event-meta">
+                                    <i class="far fa-calendar-alt"></i> <%= new Date(events[i].date).toLocaleDateString() %> at <%= events[i].time %>
+                                </div>
+                                <div class="event-meta">
+                                    <i class="fas fa-map-marker-alt"></i> <%= events[i].location %>
+                                </div>
+                                <div class="event-description">
+                                    <%= events[i].description %>
+                                </div>
+                                <% if (events[i].university_name) { %>
+                                    <div class="event-meta">
+                                        <i class="fas fa-university"></i> <%= events[i].university_name %>
+                                    </div>
+                                <% } %>
+                                <div class="event-meta">
+                                    <i class="fas fa-envelope"></i> <%= events[i].contact_email %>
+                                </div>
+                                <div class="event-meta">
+                                    <i class="fas fa-phone"></i> <%= events[i].contact_info %>
+                                </div>
+                                <a href="/viewEvent/<%= events[i].id %>" class="btn">View Details</a>
+                            </div>
                         </div>
                     <% } %>
-                </div>
+                <% } else { %>
+                    <div class="no-events">
+                        <h3>No upcoming events</h3>
+                        <% if (user && (user.isAdmin || user.isSuperAdmin)) { %>
+                            <p>Create the first event using the form above!</p>
+                        <% } else { %>
+                            <p>Check back later for upcoming events</p>
+                        <% } %>
+                    </div>
+                <% } %>
             </div>
-            
-            <footer>
-                <p>&copy; 2025 Campus Connect. All rights reserved.</p>
-            </footer>
         </div>
-    
-        <script>
-            // Set minimum date to today for event creation
-            document.addEventListener('DOMContentLoaded', function() {
-                const today = new Date().toISOString().split('T')[0];
+        
+        <footer>
+            <p>&copy; 2025 Campus Connect. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <script>
+        // Set minimum date to today for event creation
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date().toISOString().split('T')[0];
+            if (document.getElementById('date')) {
                 document.getElementById('date').min = today;
-            });
-        </script>
-        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-    </body>
-    </html>
+            }
+
+            // Show/hide RSO field based on event type selection
+            const eventTypeSelect = document.getElementById('event_type');
+            const rsoField = document.getElementById('rsoField');
+            
+            if (eventTypeSelect && rsoField) {
+                eventTypeSelect.addEventListener('change', function() {
+                    if (this.value === 'RSO') {
+                        rsoField.style.display = 'block';
+                        // Load RSOs for this user
+                        fetch('/get-rsos')
+                            .then(response => response.json())
+                            .then(rsos => {
+                                const select = document.getElementById('rso_id');
+                                select.innerHTML = '';
+                                rsos.forEach(rso => {
+                                    const option = document.createElement('option');
+                                    option.value = rso.id;
+                                    option.textContent = rso.name;
+                                    select.appendChild(option);
+                                });
+                            });
+                    } else {
+                        rsoField.style.display = 'none';
+                    }
+                });
+            }
+        });
+    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
+</body>
+</html>
