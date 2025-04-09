@@ -43,7 +43,7 @@ const dbOptions = {
   host: 'localhost',
   user: 'brnnguyen25',
   port: 3306,
-  password: '',
+  password: 'Duwanggang1@',
   database: 'setup'
 };
 app.use(myConnection(mysql, dbOptions, 'single'));
@@ -322,70 +322,71 @@ app.get('/super', (req, res) => {
     });
   });
 
-// Events routes
+
 // Events routes
 app.get('/events', (req, res) => {
   req.getConnection((err, connection) => {
-      if (err) throw err;
+    if (err) throw err;
+    
+    // Base query for public events (visible to everyone, must be approved)
+    let query = `
+        SELECT e.* 
+        FROM events e
+        WHERE e.event_type = 'public'
+        AND e.status = 'approved'
+    `;
+    
+    let queryParams = [];
+    
+    // If user is logged in, they can see more events
+    if (req.session.user) {
+      const user = req.session.user;
       
-      // Base query for public events (visible to everyone)
-      let query = `
+      // Add private events from the user's university (no approval required)
+      query += `
+          UNION
           SELECT e.* 
           FROM events e
-          WHERE e.event_type = 'Public'
+          WHERE e.event_type = 'private' 
+          AND e.university = ?
       `;
+      queryParams.push(user.university);
       
-      let queryParams = [];
+      //  RSO events query 
+      query += `
+          UNION
+          SELECT e.* 
+          FROM events e
+          JOIN rsomembers rm ON rm.rso_id = e.rso_id
+          WHERE e.event_type = 'rso'
+          AND rm.user_id = ?
+      `;
+      queryParams.push(user.id);
       
-      // If user is logged in, they can see more events
-      if (req.session.user) {
-          const user = req.session.user;
-          
-          // Add private events from the user's university
-          query += `
-              UNION
-              SELECT e.* 
-              FROM events e
-              WHERE e.event_type = 'Private' 
-              AND e.university_id = ?
-          `;
-          queryParams.push(user.university);
-          
-          // Add RSO events where the user is a member
-          query += `
-              UNION
-              SELECT e.* 
-              FROM events e
-              JOIN rsomembers rm ON e.rso_id = rm.rso_id
-              WHERE e.event_type = 'RSO' 
-              AND rm.user_id = ?
-          `;
-          queryParams.push(user.user_id);
-          
-          // Admins and SuperAdmins can see all events from their university
-          if (user.user_type === 'Admin' || user.user_type === 'SuperAdmin') {
-              query += `
-                  UNION
-                  SELECT e.* 
-                  FROM events e
-                  WHERE e.university_id = ?
-              `;
-              queryParams.push(user.university);
-          }
+      // Admins and SuperAdmins can see all events from their university
+      if (user.user_type === 'Admin' || user.user_type === 'SuperAdmin') {
+        query += `
+            UNION
+            SELECT e.* 
+            FROM events e
+            WHERE e.university = ?
+        `;
+        queryParams.push(user.university);
       }
+    }
+    
+    // Add ordering
+    query += ' ORDER BY date, time';
+    
+    connection.query(query, queryParams, (error, results) => {
+      if (error) throw error;
       
-      // Add ordering
-      query += ' ORDER BY date, time';
-      
-      connection.query(query, queryParams, (error, results) => {
-          if (error) throw error;
-          
-          res.render('events', { 
-              title: 'Events', 
-              user: req.session.user,
-              events: results
-          });
+      res.render('events', { 
+        title: 'Events', 
+        user: req.session.user,
+        events: results
       });
+    });
   });
 });
   
@@ -802,7 +803,6 @@ app.get('/universities', (req, res) => {
     });
 });
 
-// Join RSO Route
 // Join RSO Route
 app.post('/rso/:id/join', (req, res) => {
   if (!req.session.user) {
