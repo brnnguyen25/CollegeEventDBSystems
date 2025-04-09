@@ -101,6 +101,7 @@ app.post('/login', (req, res) => {
           const user = results[0];
           req.session.user = user;
           req.session.userType = user.user_type; 
+          req.session.university = user.university; // Store university in session
 
            // Add  flag to session
            req.session.user.isAdmin = user.user_type === 'Admin';      
@@ -322,26 +323,71 @@ app.get('/super', (req, res) => {
   });
 
 // Events routes
+// Events routes
 app.get('/events', (req, res) => {
-    if (!req.session.user) return res.redirect('/login');
-    
-    req.getConnection((err, connection) => {
+  req.getConnection((err, connection) => {
       if (err) throw err;
       
-      connection.query(
-        'SELECT * FROM events ORDER BY date, time',
-        (error, results) => {
+      // Base query for public events (visible to everyone)
+      let query = `
+          SELECT e.* 
+          FROM events e
+          WHERE e.event_type = 'Public'
+      `;
+      
+      let queryParams = [];
+      
+      // If user is logged in, they can see more events
+      if (req.session.user) {
+          const user = req.session.user;
+          
+          // Add private events from the user's university
+          query += `
+              UNION
+              SELECT e.* 
+              FROM events e
+              WHERE e.event_type = 'Private' 
+              AND e.university_id = ?
+          `;
+          queryParams.push(user.university);
+          
+          // Add RSO events where the user is a member
+          query += `
+              UNION
+              SELECT e.* 
+              FROM events e
+              JOIN rsomembers rm ON e.rso_id = rm.rso_id
+              WHERE e.event_type = 'RSO' 
+              AND rm.user_id = ?
+          `;
+          queryParams.push(user.user_id);
+          
+          // Admins and SuperAdmins can see all events from their university
+          if (user.user_type === 'Admin' || user.user_type === 'SuperAdmin') {
+              query += `
+                  UNION
+                  SELECT e.* 
+                  FROM events e
+                  WHERE e.university_id = ?
+              `;
+              queryParams.push(user.university);
+          }
+      }
+      
+      // Add ordering
+      query += ' ORDER BY date, time';
+      
+      connection.query(query, queryParams, (error, results) => {
           if (error) throw error;
           
           res.render('events', { 
-            title: 'Events', 
-            user: req.session.user,
-            events: results
+              title: 'Events', 
+              user: req.session.user,
+              events: results
           });
-        }
-      );
-    });
+      });
   });
+});
   
   app.post('/create-event', (req, res) => {
     if (!req.session.user || !req.session.user.isAdmin) {
@@ -365,88 +411,232 @@ app.get('/events', (req, res) => {
     });
   });
 
-  // Event View Route
-app.get('/viewEvent/:id', (req, res) => {
-    if (!req.session.user) {
-      return res.redirect('/login');
-    }
-  
-    req.getConnection((err, connection) => {
-      if (err) throw err;
-      
-      // Get event details
-      connection.query(
-        `SELECT e.*, u.username as creator_name 
-         FROM events e 
-         JOIN users u ON e.created_by = u.id 
-         WHERE e.id = ?`,
 
-        [req.params.id],
-        (error, eventResults) => {
-          if (error) throw error;
-          
-          if (eventResults.length === 0) {
-            return res.redirect('/events');
-          }
-          
-          // Get comments for this event
-          connection.query(
-            `SELECT c.*, u.username 
-             FROM comments c 
-             JOIN users u ON c.user_id = u.id 
-             WHERE c.event_id = ? 
-             ORDER BY c.created_at DESC`,
-            [req.params.id],
-            (error, commentResults) => {
-              if (error) throw error;
-              
-              const event = eventResults[0];
-              event.comments = commentResults;
-              
-              res.render('viewEvent', {
-                title: event.name,
-                user: req.session.user,
-                event: event
-              });
-            }
-          );
+// Event View Route
+app.get('/viewEvent/:id', (req, res) => {
+  if (!req.session.user) {
+    return res.redirect('/login');
+  }
+
+  req.getConnection((err, connection) => {
+    if (err) throw err;
+    
+    // Get event details
+    connection.query(
+      `SELECT e.*, u.username as creator_name 
+       FROM events e 
+       JOIN users u ON e.created_by = u.id 
+       WHERE e.id = ?`,
+      [req.params.id],
+      (error, eventResults) => {
+        if (error) throw error;
+        
+        if (eventResults.length === 0) {
+          return res.redirect('/events');
         }
-      );
-    });
+        
+        // Get comments for this event
+        connection.query(
+          `SELECT c.*, u.username, u.id as user_id 
+           FROM comments c 
+           JOIN users u ON c.user_id = u.id 
+           WHERE c.event_id = ? 
+           ORDER BY c.created_at DESC`,
+          [req.params.id],
+          (error, commentResults) => {
+            if (error) throw error;
+            
+            // Get current user's rating for this event
+            connection.query(
+              `SELECT id, rating, text 
+               FROM comments 
+               WHERE event_id = ? AND user_id = ?`,
+              [req.params.id, req.session.user.id],
+              (error, userRatingResults) => {
+                if (error) throw error;
+                
+                const event = eventResults[0];
+                event.comments = commentResults;
+                
+                const userRating = userRatingResults.length > 0 ? {
+                  id: userRatingResults[0].id,
+                  rating: userRatingResults[0].rating,
+                  comment: userRatingResults[0].text
+                } : null;
+                
+                res.render('viewEvent', {
+                  title: event.name,
+                  user: req.session.user,
+                  event: event,
+                  userRating: userRating
+                });
+              }
+            );
+          }
+        );
+      }
+    );
   });
+});
   
   // Event Rating Route
   app.post('/rate-event/:id', (req, res) => {
     if (!req.session.user) return res.redirect('/login');
+    
+    // Block admins from rating (if desired)
     if (req.session.user.isAdmin || req.session.user.isSuperAdmin) {
-      return res.redirect('/events');  // Block admins from rating
+      req.flash('error', 'Admins cannot rate events');
+      return res.redirect(`/viewEvent/${req.params.id}`);
     }
   
     const { rating, comment } = req.body;
-  // Validate rating (1-5)
-  if (!rating || rating < 1 || rating > 5) {
-  req.session.error = "Please select a rating (1-5 stars).";
-  return res.redirect(`/viewEvent/${req.params.id}`);
-}
-  // Sanitize comment (e.g., with `validator` or custom logic)
-  if (!comment?.trim()) {
-  req.session.error = "Comment cannot be empty.";
-  return res.redirect(`/viewEvent/${req.params.id}`);
-}
     
+    // Validate rating (1-5)
+    if (!rating || isNaN(rating) || rating < 1 || rating > 5) {
+      req.flash('error', 'Please select a valid rating (1-5 stars)');
+      return res.redirect(`/viewEvent/${req.params.id}`);
+    }
+    
+    // Sanitize comment
+    const sanitizedComment = comment ? comment.trim() : '';
+    if (sanitizedComment.length > 500) {
+      req.flash('error', 'Comment must be less than 500 characters');
+      return res.redirect(`/viewEvent/${req.params.id}`);
+    }
+  
     req.getConnection((err, connection) => {
-      if (err) throw err;
+      if (err) {
+        console.error(err);
+        req.flash('error', 'Database error');
+        return res.redirect(`/viewEvent/${req.params.id}`);
+      }
       
+      // Check if user already commented on this event
       connection.query(
-        'INSERT INTO comments (event_id, user_id, rating, text) VALUES (?, ?, ?, ?)',
-        [req.params.id, req.session.user.id, rating, comment],
-        (error) => {
-          if (error) throw error;
-          res.redirect(`/viewEvent/${req.params.id}`);
+        'SELECT id FROM comments WHERE event_id = ? AND user_id = ?',
+        [req.params.id, req.session.user.id],
+        (error, results) => {
+          if (error) {
+            console.error(error);
+            req.flash('error', 'Database error');
+            return res.redirect(`/viewEvent/${req.params.id}`);
+          }
+          
+          if (results.length > 0) {
+            // Update existing comment
+            connection.query(
+              'UPDATE comments SET rating = ?, text = ?, updated_at = NOW() WHERE id = ?',
+              [rating, sanitizedComment, results[0].id],
+              (error) => {
+                if (error) {
+                  console.error(error);
+                  req.flash('error', 'Failed to update comment');
+                } else {
+                  req.flash('success', 'Comment updated successfully');
+                }
+                res.redirect(`/viewEvent/${req.params.id}`);
+              }
+            );
+          } else {
+            // Create new comment
+            connection.query(
+              'INSERT INTO comments (event_id, user_id, rating, text) VALUES (?, ?, ?, ?)',
+              [req.params.id, req.session.user.id, rating, sanitizedComment],
+              (error) => {
+                if (error) {
+                  console.error(error);
+                  req.flash('error', 'Failed to add comment');
+                } else {
+                  req.flash('success', 'Comment added successfully');
+                }
+                res.redirect(`/viewEvent/${req.params.id}`);
+              }
+            );
+          }
         }
       );
     });
   });
+
+  // Delete Comment Route
+app.post('/delete-comment/:id', (req, res) => {
+  if (!req.session.user) return res.redirect('/login');
+  
+  req.getConnection((err, connection) => {
+    if (err) {
+      console.error(err);
+      req.flash('error', 'Database error');
+      return res.redirect('/events');
+    }
+    
+    // First get the comment to verify ownership
+    connection.query(
+      'SELECT event_id, user_id FROM comments WHERE id = ?',
+      [req.params.id],
+      (error, results) => {
+        if (error || results.length === 0) {
+          console.error(error);
+          req.flash('error', 'Comment not found');
+          return res.redirect('/events');
+        }
+        
+        const comment = results[0];
+        
+        // Verify user is the comment owner or an admin
+        if (comment.user_id !== req.session.user.id && 
+            !req.session.user.isAdmin && 
+            !req.session.user.isSuperAdmin) {
+          req.flash('error', 'You can only delete your own comments');
+          return res.redirect(`/viewEvent/${comment.event_id}`);
+        }
+        
+        // Delete the comment
+        connection.query(
+          'DELETE FROM comments WHERE id = ?',
+          [req.params.id],
+          (error) => {
+            if (error) {
+              console.error(error);
+              req.flash('error', 'Failed to delete comment');
+            } else {
+              req.flash('success', 'Comment deleted successfully');
+            }
+            res.redirect(`/viewEvent/${comment.event_id}`);
+          }
+        );
+      }
+    );
+  });
+});
+
+// Get Comment for Editing (AJAX-friendly)
+app.get('/get-comment/:id', (req, res) => {
+  if (!req.session.user) return res.status(401).json({ error: 'Unauthorized' });
+  
+  req.getConnection((err, connection) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: 'Database error' });
+    }
+    
+    connection.query(
+      'SELECT id, rating, text FROM comments WHERE id = ? AND user_id = ?',
+      [req.params.id, req.session.user.id],
+      (error, results) => {
+        if (error) {
+          console.error(error);
+          return res.status(500).json({ error: 'Database error' });
+        }
+        
+        if (results.length === 0) {
+          return res.status(404).json({ error: 'Comment not found or not owned by user' });
+        }
+        
+        res.json(results[0]);
+      }
+    );
+  });
+});
 
   // Universities Routes
 app.get('/universities', (req, res) => {
