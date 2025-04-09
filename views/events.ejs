@@ -11,6 +11,9 @@
             --black: #000000;
             --white: #FFFFFF;
             --light-gray: #F5F5F5;
+            --public-color: #4CAF50;
+            --private-color: #2196F3;
+            --rso-color: #9C27B0;
         }
         
         body {
@@ -52,7 +55,7 @@
             color: var(--gold);
         }
         
-        .logout-btn {
+        .logout-btn, .login-btn {
             background-color: var(--gold);
             color: var(--black);
             border: none;
@@ -61,9 +64,11 @@
             cursor: pointer;
             font-weight: bold;
             transition: background-color 0.3s;
+            text-decoration: none;
+            display: inline-block;
         }
         
-        .logout-btn:hover {
+        .logout-btn:hover, .login-btn:hover {
             background-color: var(--dark-gold);
         }
         
@@ -72,34 +77,6 @@
             font-size: 2.5rem;
             margin-bottom: 30px;
             text-align: center;
-        }
-        
-        .tabs {
-            display: flex;
-            margin-bottom: 30px;
-            border-bottom: 1px solid var(--gold);
-        }
-        
-        .tab {
-            padding: 10px 20px;
-            cursor: pointer;
-            color: var(--gold);
-            font-weight: bold;
-            border-bottom: 3px solid transparent;
-            transition: all 0.3s;
-        }
-        
-        .tab.active {
-            border-bottom: 3px solid var(--gold);
-            color: var(--white);
-        }
-        
-        .tab-content {
-            display: none;
-        }
-        
-        .tab-content.active {
-            display: block;
         }
         
         .events-grid {
@@ -115,13 +92,37 @@
             overflow: hidden;
             box-shadow: 0 0 15px rgba(255, 215, 0, 0.2);
             color: var(--black);
+            position: relative;
         }
         
         .event-header {
-            background-color: var(--gold);
             padding: 15px;
-            color: var(--black);
+            color: var(--white);
             font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .public .event-header {
+            background-color: var(--public-color);
+        }
+        
+        .private .event-header {
+            background-color: var(--private-color);
+        }
+        
+        .rso .event-header {
+            background-color: var(--rso-color);
+        }
+        
+        .event-type {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background-color: rgba(0,0,0,0.2);
         }
         
         .event-body {
@@ -132,17 +133,22 @@
             font-size: 1.3rem;
             margin-bottom: 10px;
             color: var(--black);
+            font-weight: bold;
         }
         
         .event-meta {
             color: #666;
-            margin-bottom: 5px;
+            margin-bottom: 8px;
             font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         
         .event-description {
             margin: 15px 0;
             color: #444;
+            line-height: 1.5;
         }
         
         .btn {
@@ -197,6 +203,15 @@
             margin-left: 10px;
         }
         
+        .superadmin-badge {
+            background-color: #FF5722;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            margin-left: 10px;
+        }
+        
         footer {
             text-align: center;
             margin-top: 50px;
@@ -213,32 +228,56 @@
             background-color: rgba(255, 215, 0, 0.1);
             border-radius: 8px;
         }
+        
+        .info-banner {
+            background-color: rgba(255, 215, 0, 0.1);
+            border-left: 4px solid var(--gold);
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .info-banner i {
+            color: var(--gold);
+            font-size: 1.5rem;
+        }
+        
+        .event-status {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .status-pending {
+            background-color: #FFC107;
+            color: #000;
+        }
+    
     </style>
-   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
 </head>
 <body>
     <div class="container">
         <header>
             <div class="logo">UCF EVENTS</div>
             <div class="user-info">
-                <% if (user) { %>
-                    <span><%= user.username %></span>
-                    <% if (user.isAdmin) { %>
-                        <span class="admin-badge">ADMIN</span>
-                    <% } %>
-                    <% if (user.isSuperAdmin) { %>
-                        <span class="superadmin-badge">SUPER ADMIN</span>
-                    <% } %>
-                    <a href="/logout" class="logout-btn">Logout</a>
-                <% } else { %>
-                    <a href="/login" class="login-btn">Login</a>
+                <% if (user.isAdmin) { %>
+                    <span style="background-color: var(--gold); color: var(--black); padding: 3px 8px; border-radius: 3px; font-size: 0.8rem;">ADMIN</span>
                 <% } %>
+                    <a href="/logout" class="logout-btn">Logout</a>
             </div>
         </header>
         
         <h1 class="page-title">Campus Events</h1>
         
-        <% if (user && (user.isAdmin || user.isSuperAdmin)) { %>
+        <% if (user && (user.user_type === 'Admin' || user.user_type === 'SuperAdmin')) { %>
             <div class="host-event-section">
                 <h2>Host a New Event</h2>
                 <form id="eventForm" action="/create-event" method="POST">
@@ -293,20 +332,9 @@
                     <div class="form-group">
                         <label for="event_type">Event Type</label>
                         <select id="event_type" name="event_type" required>
-                            <option value="Public">Public (Visible to everyone)</option>
-                            <option value="Private">Private (Only for <%= user.university %> students)</option>
-                            <option value="RSO">RSO Event (Only for RSO members)</option>
-                        </select>
-                    </div>
-                    
-                    <% if (user.university) { %>
-                        <input type="hidden" name="university_id" value="<%= user.university %>">
-                    <% } %>
-                    
-                    <div id="rsoField" class="form-group" style="display: none;">
-                        <label for="rso_id">Select RSO</label>
-                        <select id="rso_id" name="rso_id">
-
+                            <option value="public">Public (Visible to everyone, requires approval)</option>
+                            <option value="private">Private (Only for <%= user.university %> students)</option>
+                            <option value="rso">RSO Event (Only for RSO members)</option>
                         </select>
                     </div>
                     
@@ -316,8 +344,6 @@
         <% } %>
         
         <div class="events-section">
-            <h2>Upcoming Events</h2>
-            
             <% if (!user) { %>
                 <div class="info-banner">
                     <i class="fas fa-info-circle"></i> 
@@ -328,14 +354,19 @@
             <div class="events-grid">
                 <% if (events && events.length > 0) { %>
                     <% for(let i = 0; i < events.length; i++) { %>
-                        <div class="event-card">
+                        <div class="event-card <%= events[i].event_type %>">
+                            <% if (events[i].event_type === 'public') { %>
+                                <span class="event-status status-<%= events[i].status %>">
+                                    <%= events[i].status %>
+                                </span>
+                            <% } %>
                             <div class="event-header">
-                                <%= events[i].category %>
-                                <span class="event-type-badge <%= events[i].event_type.toLowerCase() %>">
+                                <span><%= events[i].category %></span>
+                                <span class="event-type">
                                     <%= events[i].event_type %>
-                                    <% if (events[i].event_type === 'Private') { %>
-                                        <i class="fas fa-lock" title="Only visible to <%= events[i].university_name || events[i].university_id %> students"></i>
-                                    <% } else if (events[i].event_type === 'RSO') { %>
+                                    <% if (events[i].event_type === 'private') { %>
+                                        <i class="fas fa-lock" title="Only visible to <%= events[i].university %> students"></i>
+                                    <% } else if (events[i].event_type === 'rso') { %>
                                         <i class="fas fa-users" title="Only visible to RSO members"></i>
                                     <% } else { %>
                                         <i class="fas fa-globe" title="Public event"></i>
@@ -345,7 +376,13 @@
                             <div class="event-body">
                                 <div class="event-name"><%= events[i].name %></div>
                                 <div class="event-meta">
-                                    <i class="far fa-calendar-alt"></i> <%= new Date(events[i].date).toLocaleDateString() %> at <%= events[i].time %>
+                                    <i class="far fa-calendar-alt"></i> 
+                                    <%= new Date(events[i].date).toLocaleDateString('en-US', { 
+                                        weekday: 'short', 
+                                        year: 'numeric', 
+                                        month: 'short', 
+                                        day: 'numeric' 
+                                    }) %> at <%= events[i].time.slice(0, 5) %>
                                 </div>
                                 <div class="event-meta">
                                     <i class="fas fa-map-marker-alt"></i> <%= events[i].location %>
@@ -353,11 +390,9 @@
                                 <div class="event-description">
                                     <%= events[i].description %>
                                 </div>
-                                <% if (events[i].university_name) { %>
-                                    <div class="event-meta">
-                                        <i class="fas fa-university"></i> <%= events[i].university_name %>
-                                    </div>
-                                <% } %>
+                                <div class="event-meta">
+                                    <i class="fas fa-university"></i> <%= events[i].university %>
+                                </div>
                                 <div class="event-meta">
                                     <i class="fas fa-envelope"></i> <%= events[i].contact_email %>
                                 </div>
@@ -371,7 +406,7 @@
                 <% } else { %>
                     <div class="no-events">
                         <h3>No upcoming events</h3>
-                        <% if (user && (user.isAdmin || user.isSuperAdmin)) { %>
+                        <% if (user && (user.user_type === 'Admin' || user.user_type === 'SuperAdmin')) { %>
                             <p>Create the first event using the form above!</p>
                         <% } else { %>
                             <p>Check back later for upcoming events</p>
@@ -393,35 +428,6 @@
             if (document.getElementById('date')) {
                 document.getElementById('date').min = today;
             }
-
-            // Show/hide RSO field based on event type selection
-            const eventTypeSelect = document.getElementById('event_type');
-            const rsoField = document.getElementById('rsoField');
-            
-            if (eventTypeSelect && rsoField) {
-                eventTypeSelect.addEventListener('change', function() {
-                    if (this.value === 'RSO') {
-                        rsoField.style.display = 'block';
-                        // Load RSOs for this user
-                        fetch('/get-rsos')
-                            .then(response => response.json())
-                            .then(rsos => {
-                                const select = document.getElementById('rso_id');
-                                select.innerHTML = '';
-                                rsos.forEach(rso => {
-                                    const option = document.createElement('option');
-                                    option.value = rso.id;
-                                    option.textContent = rso.name;
-                                    select.appendChild(option);
-                                });
-                            });
-                    } else {
-                        rsoField.style.display = 'none';
-                    }
-                });
-            }
         });
     </script>
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-</body>
-</html>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.
